@@ -1,5 +1,5 @@
 ---
-excludeAgent: code-review-agent
+excludeAgent: code-review
 ---
 
 **Any code you commit MUST compile, and new and existing tests related to the change MUST pass.**
@@ -8,7 +8,13 @@ You MUST make your best effort to ensure any code changes satisfy those criteria
 
 If you make code changes, do not complete without checking the relevant code builds and relevant tests still pass after the last edits you make. Do not simply assume that your changes fix test failures you see, actually build and run those tests again to confirm.
 
-Before completing, use the `code-review` skill to review your code changes. Any issues flagged as errors or warnings should be addressed before completing.
+When running under CCA and before completing, use the `code-review` skill to review your code changes. Any issues flagged as errors or warnings should be addressed before the task is considered complete.
+
+When NOT running under CCA, skip the `code-review` skill if the user has stated they will review the changes themselves.
+
+Before making changes to a directory, search for `README.md` files in that directory and its parent directories up to the repository root. Read any you find — they contain conventions, patterns, and architectural context relevant to your work.
+
+For specialized runtime subsystems, also check `docs/design/features/` for design documents that describe architectural constraints relevant to your work.
 
 If the changes are intended to improve performance, or if they could negatively impact performance, use the `performance-benchmark` skill to validate the impact before completing.
 
@@ -25,6 +31,8 @@ In addition to the rules enforced by `.editorconfig`, you SHOULD:
 - Prefer `?.` if applicable (e.g. `scope?.Dispose()`).
 - Use `ObjectDisposedException.ThrowIf` where applicable.
 - When adding new unit tests, strongly prefer to add them to existing test code files rather than creating new code files.
+- When adding new test files, examine the directory structure of sibling tests first. Some test directories use flat files (e.g., `GCEvents.cs` alongside `GCEvents.csproj`) while others use per-test subdirectories. Match the existing convention.
+- When working with tests, look for `README.md` files along the directory hierarchy (starting from the test's directory and walking up). These contain build, run, and authoring guidance specific to that test area.
 - When adding new unit tests, avoid adding a regression comment citing a GitHub issue or PR number unless explicitly asked to include such information.
 - When writing tests, prefer using `[Theory]` with multiple data sources (like `[InlineData]` or `[MemberData]`) over multiple duplicative `[Fact]` methods. Fewer test methods that validate more inputs are better than many similar test methods.
 - If you add new code files, ensure they are listed in the csproj file (if other files in that folder are listed there) so they build.
@@ -33,6 +41,13 @@ In addition to the rules enforced by `.editorconfig`, you SHOULD:
 - When writing tests, do not emit "Act", "Arrange" or "Assert" comments.
 - For markdown (`.md`) files, ensure there is no trailing whitespace at the end of any line.
 - When adding XML documentation to APIs, follow the guidelines at [`docs.prompt.md`](/.github/prompts/docs.prompt.md).
+
+When NOT running under CCA, guidance for creating commits and pushing changes:
+
+- Never squash and force push unless explicitly instructed. Always push incremental commits on top of previous PR changes.
+- Never push to an active PR without being explicitly asked, even in autopilot/yolo mode. Always wait for explicit instruction to push.
+- Never chain commit and push in the same command. Always commit first, report what was committed, then wait for an explicit push instruction. This creates a mandatory decision point.
+- Prefer creating a new commit rather than amending an existing one. Exceptions: (1) explicitly asked to amend, or (2) the existing commit is obviously broken with something minor (e.g., typo or comment fix) and hasn't been pushed yet.
 
 ---
 
@@ -108,13 +123,20 @@ Test projects are typically at: `tests/<LibraryName>.Tests.csproj` or `tests/<Li
 
 **Test all libraries:** `./build.sh libs.tests -test -rc release`
 
-**System.Private.CoreLib:** Rebuild with `./build.sh clr.corelib+clr.nativecorelib+libs.pretest -rc checked`
+**System.Private.CoreLib:** Rebuild with `./build.sh clr.corelib+clr.nativecorelib+libs.pretest -rc checked`. The `libs.pretest` step copies the updated CoreLib into the framework layout; omitting it leaves stale CoreLib in the test/runtime directories.
 
 Before completing, ensure ALL tests for affected libraries pass.
 
 ### CoreCLR
 
 **Test:** `cd src/tests && ./build.sh && ./run.sh`
+
+### ReadyToRun / crossgen2 Tests
+
+- Before writing tests under `src/tests/readytorun/`, read `docs/design/features/readytorun-pinvoke.md` for version-bubble and cross-module reference constraints. Also check for `README.md` files in the test directory.
+- If a ReadyToRun test compiles a standalone assembly and expects P/Invoke marshalling helpers from CoreLib (e.g., Objective-C exception checks, `SetLastError`), pass `--inputbubble` to crossgen2 so CoreLib is included in the version bubble.
+- For platform-specific P/Invoke detection tests, verify the exact library path and entrypoint strings matched by the compiler logic in `MarshalHelpers.cs` and use those exact values in `DllImport` attributes.
+- When validating R2R compilation via `--map`, check for `MethodWithGCInfo` entries (compiled native code). `MethodFixupSignature` and `DelayLoadHelperImport` entries are metadata references that exist regardless of whether a method was precompiled.
 
 ### Mono
 
@@ -150,14 +172,65 @@ cd src/tests
 
 ### Runtime Tests
 
-**Build:**
+Subdirectories under `src/tests/` may contain `README.md` files with
+area-specific guidance (e.g., EventPipe test patterns).
+
+**Build all tests:**
 ```bash
 ./build.sh clr+libs -lc release -rc checked
 ./src/tests/build.sh checked
 ./src/tests/run.sh checked
 ```
 
+**Build a single test project** (path is relative to the repo root):
+```bash
+# Use -priority1 ("-Priority 1" on Windows) for tests with <CLRTestPriority>1</CLRTestPriority>,
+# otherwise the build silently reports "0 test projects" and builds nothing.
+src/tests/build.sh -Test tracing/eventpipe/eventsvalidation/GCEvents.csproj x64 Release -priority1
+```
+
+Other useful flags (run `src/tests/build.sh -h` for the full list):
+
+| Flag | Description |
+|------|-------------|
+| `-Test <path>` | Build one project |
+| `-Dir <path>` | Build all projects in a directory |
+| `-Tree <path>` | Build a subtree recursively |
+| `-priority1` (`-Priority 1` on Windows) | Include priority 1 tests |
+| `-GenerateLayoutOnly` | Generate Core_Root layout only |
+
+**Generate Core_Root layout** (required before running individual tests):
+```bash
+src/tests/build.sh -GenerateLayoutOnly x64 Release
+```
+
+**Run a single test:**
+```bash
+export CORE_ROOT=$(pwd)/artifacts/tests/coreclr/<os>.x64.Release/Tests/Core_Root
+cd artifacts/tests/coreclr/<os>.x64.Release/<test-path>/
+$CORE_ROOT/corerun <TestName>.dll
+# Exit code 100 = pass, any other value = fail.
+```
+
 ---
+
+## ⚠️ MANDATORY: Regression Test Verification
+
+**Before committing a regression test, you MUST confirm BOTH conditions:**
+- the test fails against the unfixed code, and
+- the test passes with the fix applied.
+
+The baseline build artifacts are the unfixed binaries for negative verification. Reuse that known-good pre-change build/output when proving the test fails without your fix; do not assume you need to reconstruct a separate "bad" build after editing code.
+
+⚠️ A first green run is **not** evidence that the test is valid. It may be passing because it never exercised the bug, because it ran against already-fixed binaries, or because it is only asserting existing behavior.
+
+When creating a regression test for a bug fix:
+
+1. **Verify the test FAILS without the fix** — run it against the baseline/unfixed build artifacts and confirm you are exercising the pre-fix binaries.
+2. **Verify the test PASSES with the fix** — apply the fix, rebuild the affected components, and rerun the same test to confirm the behavior changed for the right reason.
+3. **If the fix is not yet merged locally, manually apply the minimal changes from the PR/commit to verify** — do not skip negative verification just because the fix originated elsewhere.
+
+Do not mark a regression test task as complete until both conditions are explicitly confirmed.
 
 ## Troubleshooting
 
@@ -165,12 +238,14 @@ cd src/tests
 |-------|----------|
 | "shared framework must be built" | Run baseline build: `./build.sh clr+libs -rc release` |
 | "testhost" missing / FileNotFoundException | Run baseline build first (Step 2 above) |
+| crossgen2 + CoreLib changed | When a PR modifies both crossgen2 and CoreLib (e.g., adding new helper methods), do a full `./build.sh clr+libs` from the PR branch. Incremental crossgen2-only rebuilds will fail because the framework CoreLib won't have the new methods. |
 | Build timeout | Wait up to 40 min; only fail if no output for 5 min |
 | "Target does not exist" | Avoid specifying a target framework; the build will auto-select `$(NetCoreAppCurrent)` |
+| "0 test projects" after `build.sh -Test` | The test has `<CLRTestPriority>` > 0; add `-priority1` to the build command |
 
 **When reporting failures:** Include logs from `artifacts/log/` and console output for diagnostics.
 
-**Windows:** Use `build.cmd` instead of `build.sh`. Set PATH: `set PATH=%CD%\.dotnet;%PATH%`
+**Windows:** Use `build.cmd` instead of `build.sh`.
 
 ---
 
