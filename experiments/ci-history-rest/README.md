@@ -10,11 +10,11 @@ policy change. The example needs Python 3.10+ and its standard library.
 Use the **one canonical client, contract and fixture service** in the companion
 [PureWeen/aspnetcore#75](https://github.com/PureWeen/aspnetcore/pull/75) review
 change, under `experiments/ci-history-rest`, pinned to commit
-[`73fa66c082718e44624f5e949ac4583096d8525c`](https://github.com/PureWeen/aspnetcore/tree/73fa66c082718e44624f5e949ac4583096d8525c/experiments/ci-history-rest).
+[`e3b4a4e7a6332db0555d46ca88fcec106dc7aeef`](https://github.com/PureWeen/aspnetcore/tree/e3b4a4e7a6332db0555d46ca88fcec106dc7aeef/experiments/ci-history-rest).
 There is no copied service or second contract here. Prepare a separate ASP.NET
 checkout at that exact commit before going offline, not at a moving PR branch.
 Alternatively, download the
-[pinned source archive](https://github.com/PureWeen/aspnetcore/archive/73fa66c082718e44624f5e949ac4583096d8525c.tar.gz)
+[pinned source archive](https://github.com/PureWeen/aspnetcore/archive/e3b4a4e7a6332db0555d46ca88fcec106dc7aeef.tar.gz)
 while online and extract its top-level directory to a new sibling `../aspnetcore`
 directory. Do not overwrite an existing checkout. Given both source trees side
 by side, run from this runtime checkout:
