@@ -13,7 +13,11 @@ change, under `experiments/ci-history-rest`, pinned to commit
 [`73fa66c082718e44624f5e949ac4583096d8525c`](https://github.com/PureWeen/aspnetcore/tree/73fa66c082718e44624f5e949ac4583096d8525c/experiments/ci-history-rest).
 There is no copied service or second contract here. Prepare a separate ASP.NET
 checkout at that exact commit before going offline, not at a moving PR branch.
-Given both checkouts side by side, run from this runtime checkout:
+Alternatively, download the
+[pinned source archive](https://github.com/PureWeen/aspnetcore/archive/73fa66c082718e44624f5e949ac4583096d8525c.tar.gz)
+while online and extract its top-level directory to a new sibling `../aspnetcore`
+directory. Do not overwrite an existing checkout. Given both source trees side
+by side, run from this runtime checkout:
 
 ```sh
 SHARED=../aspnetcore/experiments/ci-history-rest
