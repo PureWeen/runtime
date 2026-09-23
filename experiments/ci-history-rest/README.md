@@ -8,10 +8,12 @@ policy change. The example needs Python 3.10+ and its standard library.
 ## Offline use
 
 Use the **one canonical client, contract and fixture service** in the companion
-`PureWeen/aspnetcore` review change, under `experiments/ci-history-rest`. There is
-no copied service or second contract here. The immutable companion commit link
-will be pinned before publication. Given both checkouts side by side, run from
-this runtime checkout:
+[PureWeen/aspnetcore#75](https://github.com/PureWeen/aspnetcore/pull/75) review
+change, under `experiments/ci-history-rest`, pinned to commit
+[`73fa66c082718e44624f5e949ac4583096d8525c`](https://github.com/PureWeen/aspnetcore/tree/73fa66c082718e44624f5e949ac4583096d8525c/experiments/ci-history-rest).
+There is no copied service or second contract here. Prepare a separate ASP.NET
+checkout at that exact commit before going offline, not at a moving PR branch.
+Given both checkouts side by side, run from this runtime checkout:
 
 ```sh
 SHARED=../aspnetcore/experiments/ci-history-rest
